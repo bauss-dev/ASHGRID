@@ -1,0 +1,14 @@
+{
+	"authors": [
+		"Jacob Jensen"
+	],
+	"license": "The MIT License (MIT)",
+	"copyright": "Copyright © 2025 ASHGRID",
+	"name": "dvn",
+	"sourcePaths": [
+		"source"
+	],
+	"description": "ASHGRID is a procedural map generator written in D.",
+	"homepage": "https://github.com/bauss-dev/ASHGRID",
+	"targetType": "sourceLibrary"
+}
