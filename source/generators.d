@@ -144,7 +144,7 @@ TBiome[] generateDungeon(TBiome = Biome)(MapSettings settings, TBiome emptyBiome
                 if (isInBounds(rx, ry, settings.width, settings.height))
                     dungeon[getCoordinateIndex(settings.width, rx, ry)] = groundBiome;
             }
-
+            
             if (rooms.length > 0)
             {
                 int x1 = clamp(newRoom.centerX(), newRoom.x + 1, newRoom.x + newRoom.w - 2);
@@ -155,22 +155,46 @@ TBiome[] generateDungeon(TBiome = Biome)(MapSettings settings, TBiome emptyBiome
                 if (uniform(0, 2, rnd) == 0)
                 {
                     foreach (cx; min(x1, x2) .. max(x1, x2) + 1)
-                        if (isInBounds(cx, y1, settings.width, settings.height))
-                            dungeon[getCoordinateIndex(settings.width, cx, y1)] = groundBiome;
+                    {
+                        foreach (dy; 0 .. 2)
+                        {
+                            int ny = y1 + dy;
+                            if (isInBounds(cx, ny, settings.width, settings.height))
+                                dungeon[getCoordinateIndex(settings.width, cx, ny)] = groundBiome;
+                        }
+                    }
 
                     foreach (cy; min(y1, y2) .. max(y1, y2) + 1)
-                        if (isInBounds(x2, cy, settings.width, settings.height))
-                            dungeon[getCoordinateIndex(settings.width, x2, cy)] = groundBiome;
+                    {
+                        foreach (dx; 0 .. 2)
+                        {
+                            int nx = x2 + dx;
+                            if (isInBounds(nx, cy, settings.width, settings.height))
+                                dungeon[getCoordinateIndex(settings.width, nx, cy)] = groundBiome;
+                        }
+                    }
                 }
                 else
                 {
                     foreach (cy; min(y1, y2) .. max(y1, y2) + 1)
-                        if (isInBounds(x1, cy, settings.width, settings.height))
-                            dungeon[getCoordinateIndex(settings.width, x1, cy)] = groundBiome;
+                    {
+                        foreach (dx; 0 .. 2)
+                        {
+                            int nx = x1 + dx;
+                            if (isInBounds(nx, cy, settings.width, settings.height))
+                                dungeon[getCoordinateIndex(settings.width, nx, cy)] = groundBiome;
+                        }
+                    }
 
                     foreach (cx; min(x1, x2) .. max(x1, x2) + 1)
-                        if (isInBounds(cx, y2, settings.width, settings.height))
-                            dungeon[getCoordinateIndex(settings.width, cx, y2)] = groundBiome;
+                    {
+                        foreach (dy; 0 .. 2)
+                        {
+                            int ny = y2 + dy;
+                            if (isInBounds(cx, ny, settings.width, settings.height))
+                                dungeon[getCoordinateIndex(settings.width, cx, ny)] = groundBiome;
+                        }
+                    }
                 }
             }
 
@@ -183,7 +207,7 @@ TBiome[] generateDungeon(TBiome = Biome)(MapSettings settings, TBiome emptyBiome
     foreach (x; 1 .. settings.width - 1)
     {
         int idx = getCoordinateIndex(settings.width, x, y);
-        if (dungeon[idx] == Biome.none)
+        if (dungeon[idx] == emptyBiome)
         {
             bool adjacentToFloor = false;
             foreach (ny; y-1 .. y+2)
@@ -199,6 +223,24 @@ TBiome[] generateDungeon(TBiome = Biome)(MapSettings settings, TBiome emptyBiome
             }
             if (adjacentToFloor)
                 dungeon[idx] = wallBiome;
+        }
+    }
+
+    foreach (y; 0 .. settings.height - 1)
+    foreach (x; 0 .. settings.width - 1)
+    {
+        int idx = getCoordinateIndex(settings.width, x, y);
+        if (dungeon[idx] == wallBiome)
+        {
+            int belowY = y + 1;
+            if (belowY < settings.height)
+            {
+                int belowIdx = getCoordinateIndex(settings.width, x, belowY);
+                if (dungeon[belowIdx] == groundBiome)
+                {
+                    dungeon[belowIdx] = Biome.wallBottom;
+                }
+            }
         }
     }
 
@@ -363,6 +405,7 @@ BiomeTile!(Biome, BiomeTileType) defaultTileGenerator(int generatorValue, Biome 
     final switch (biome)
     {
         case Biome.wall: return BiomeTileStruct(biome, BiomeTileType.wall);
+        case Biome.wallBottom: return BiomeTileStruct(biome, BiomeTileType.wallBottom);
 
         case Biome.water: return BiomeTileStruct(biome, BiomeTileType.water);
         case Biome.dirtyWater: return BiomeTileStruct(biome, BiomeTileType.dirtyWater);
@@ -444,5 +487,73 @@ BiomeTile!(Biome, BiomeTileType) defaultTileGenerator(int generatorValue, Biome 
             else return BiomeTileStruct(biome, BiomeTileType.obsidian);
 
         case Biome.none: return BiomeTileStruct(biome, BiomeTileType.none);
+    }
+}
+
+/// Smoothing tile edges.
+void smoothTileEdges(TBiome = Biome, TBiomeTileType = BiomeTileType)(MapSettings settings, BiomeTile!(TBiome,TBiomeTileType)[] tiles, bool delegate(BiomeTile!(TBiome,TBiomeTileType)) isSmoothingTile)
+{
+    alias Tile = BiomeTile!(TBiome, TBiomeTileType);
+    enum DefaultTile = Tile.init;
+
+    foreach (y; 0 .. settings.height)
+    {
+        foreach (x; 0 .. settings.width)
+        {
+            auto index = getCoordinateIndex(settings.width, x, y);
+            auto tile = tiles[index];
+            
+            if (!isSmoothingTile(tile))
+            {
+                continue;
+            }
+
+            Tile topLeft      = (x > 0 && y > 0) ? tiles[getCoordinateIndex(settings.width, x - 1, y - 1)] : DefaultTile;
+            Tile top          = (y > 0) ? tiles[getCoordinateIndex(settings.width, x, y - 1)] : DefaultTile;
+            Tile topRight     = (x < settings.width - 1 && y > 0) ? tiles[getCoordinateIndex(settings.width, x + 1, y - 1)] : DefaultTile;
+            Tile left         = (x > 0) ? tiles[getCoordinateIndex(settings.width, x - 1, y)] : DefaultTile;
+            Tile right        = (x < settings.width - 1) ? tiles[getCoordinateIndex(settings.width, x + 1, y)] : DefaultTile;
+            Tile bottomLeft   = (x > 0 && y < settings.height - 1) ? tiles[getCoordinateIndex(settings.width, x - 1, y + 1)] : DefaultTile;
+            Tile bottom       = (y < settings.height - 1) ? tiles[getCoordinateIndex(settings.width, x, y + 1)] : DefaultTile;
+            Tile bottomRight  = (x < settings.width - 1 && y < settings.height - 1) ? tiles[getCoordinateIndex(settings.width, x + 1, y + 1)] : DefaultTile;
+            
+            bool topClear = !isSmoothingTile(top);
+            bool bottomClear = !isSmoothingTile(bottom);
+            bool leftClear = !isSmoothingTile(left);
+            bool rightClear = !isSmoothingTile(right);
+            bool topLeftClear = !isSmoothingTile(topLeft);
+            bool topRightClear = !isSmoothingTile(topRight);
+            bool bottomLeftClear = !isSmoothingTile(bottomLeft);
+            bool bottomRightClear = !isSmoothingTile(bottomRight);
+
+            if (topClear && leftClear && topLeftClear)
+                tile.piece = Piece.topLeft;
+            else if (topClear && rightClear && topRightClear)
+                tile.piece = Piece.topRight;
+            else if (bottomClear && leftClear && bottomLeftClear)
+                tile.piece = Piece.bottomLeft;
+            else if (bottomClear && rightClear && bottomRightClear)
+                tile.piece = Piece.bottomRight;
+            else if (!topClear && !leftClear && topLeftClear)
+                tile.piece = Piece.innerTopLeft;
+            else if (!topClear && !rightClear && topRightClear)
+                tile.piece = Piece.innerTopRight;
+            else if (!bottomClear && !leftClear && bottomLeftClear)
+                tile.piece = Piece.innerBottomLeft;
+            else if (!bottomClear && !rightClear && bottomRightClear)
+                tile.piece = Piece.innerBottomRight;
+            else if (topClear)
+                tile.piece = Piece.top;
+            else if (bottomClear)
+                tile.piece = Piece.bottom;
+            else if (leftClear)
+                tile.piece = Piece.left;
+            else if (rightClear)
+                tile.piece = Piece.right;
+            else
+                tile.piece = Piece.center;
+
+            tiles[index] = tile;
+        }
     }
 }

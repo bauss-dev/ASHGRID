@@ -40,9 +40,17 @@ auto biomeTiles = generateTiles!(Biome, BiomeTileType)(settings, biomes, heights
 {
     auto tile = defaultTileGenerator(g,b);
 
-    tile.height = h;
+    if (tile.baseType != BiomeTileType.water && tile.baseType != BiomeTileType.dirtyWater)
+    {
+        tile.height = h;
+    }
 
     return tile;
+});
+
+smoothTileEdges!(Biome, BiomeTileType)(settings, biomeTiles, (t)
+{
+    return t.baseType == BiomeTileType.water || t.baseType == BiomeTileType.dirtyWater;
 });
 ```
 

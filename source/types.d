@@ -67,6 +67,8 @@ public struct BiomeTile(TBiome = Biome, TBiomeTileType = BiomeTileType)
     BiomeTileType secondaryType;
     /// The height.
     int height;
+    /// The piece to render.
+    Piece piece;
 
     /// Creates a new biome tile.
     this(TBiome biome, BiomeTileType baseType)
@@ -75,6 +77,7 @@ public struct BiomeTile(TBiome = Biome, TBiomeTileType = BiomeTileType)
         this.baseType = baseType;
         this.secondaryType = BiomeTileType.none;
         this.height = 0;
+        this.piece = Piece.center;
     }
 
     /// Creates a new biome tile.
@@ -84,5 +87,6 @@ public struct BiomeTile(TBiome = Biome, TBiomeTileType = BiomeTileType)
         this.baseType = baseType;
         this.secondaryType = secondaryType;
         this.height = 0;
+        this.piece = Piece.center;
     }
 }

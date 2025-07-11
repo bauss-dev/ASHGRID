@@ -11,6 +11,7 @@ public enum Biome
     none,
 
     wall,
+    wallBottom,
 
     water,
     dirtyWater,
@@ -36,6 +37,7 @@ public enum BiomeTileType
     none,
 
     wall,
+    wallBottom,
 
     water,
     dirtyWater,
@@ -56,4 +58,25 @@ public enum BiomeTileType
     plant,
     flower,
     rock
+}
+
+/// A tile piece based on where it's located in the tileset. Used for smoothing ex. water.
+public enum Piece
+{
+    center,
+    left,
+    right,
+
+    top,
+    topLeft,
+    topRight,
+
+    bottom,
+    bottomRight,
+    bottomLeft,
+
+    innerTopRight,
+    innerTopLeft,
+    innerBottomRight,
+    innerBottomLeft
 }
