@@ -37,9 +37,9 @@ bool isInBounds(int x, int y, int width, int height)
 }
 
 /// Generates a smooth noise value based on a given seed and offset.
-float smoothNoise(int x, int y, uint seed, int offset = 0)
+float smoothNoise(int x, int y, uint seed, int offset)
 {
-    float randomValue(int x, int y, uint seed, int offset = 0)
+    float randomValue(int x, int y, uint seed, int offset)
     {
         int n = (x + offset) * 374761393 + (y + offset) * 668265263 + cast(int)seed * 1274126177;
         n = (n ^ (n >> 13)) * 1274126177;

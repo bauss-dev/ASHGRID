@@ -37,7 +37,7 @@ TBiome[] generateBiomes(TBiome = Biome)(MapSettings settings, float[Biome] biome
     {
         foreach (x; 0 .. settings.height)
         {
-            float value = smoothNoise(cast(int)(x / settings.biomeSize), cast(int)(y / settings.biomeSize), settings.seed, noiseOffset);
+            float value = settings.noiseFunction(cast(int)(x / settings.biomeSize), cast(int)(y / settings.biomeSize), settings.seed, noiseOffset);
             auto biome = getBiomeFromNoiseValue!TBiome(value, biomeWeights);
             int index = getCoordinateIndex(settings.width, x, y);
 
@@ -508,7 +508,7 @@ void generateWaterBiome(TBiome = Biome)(MapSettings settings, TBiome[] biomes, T
                 continue;
             }
 
-            float noise = smoothNoise(cast(int)(x / settings.biomeSize), cast(int)(y / settings.biomeSize), settings.seed, noiseOffset);
+            float noise = settings.noiseFunction(cast(int)(x / settings.biomeSize), cast(int)(y / settings.biomeSize), settings.seed, noiseOffset);
 
             if (noise < waterThreshold)
             {
@@ -540,7 +540,7 @@ int[] generateHillHeights(MapSettings settings, bool[] villageTiles = null, int 
                 continue;
             }
 
-            float noise = smoothNoise(
+            float noise = settings.noiseFunction(
                 cast(int)(x / settings.biomeSize),
                 cast(int)(y / settings.biomeSize),
                 settings.seed,

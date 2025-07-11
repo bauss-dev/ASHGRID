@@ -8,6 +8,7 @@ module ashgrid.types;
 import std.random : Random;
 
 import ashgrid.enums;
+import ashgrid.functions : smoothNoise;
 
 /// The map settings for the procedural map generator.
 public final class MapSettings
@@ -32,7 +33,11 @@ public final class MapSettings
         _biomeSize = biomeSize;
 
         this.random = Random(seed);
+
+        this.noiseFunction = (x,y,s,o) => smoothNoise(x,y,s,o);
     }
+
+    float delegate(int x, int y, uint seed, int offset) noiseFunction;
 
     package(ashgrid)
     {
