@@ -15,7 +15,7 @@ auto settings = new MapSettings(seed, width, height);
 ```d
 auto biomes = generateBiomes(settings,
 [
-    Biome.plain : 0.4f, // 405 plain
+    Biome.plain : 0.4f, // 40% plain
     Biome.forest : 0.4f, // 40% forest
     Biome.swamp :  0.2f // 20% swamp
 ]);
