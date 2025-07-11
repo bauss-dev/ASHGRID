@@ -12,6 +12,8 @@ public enum Biome
 
     wall,
     wallBottom,
+    door,
+    floor,
 
     water,
     dirtyWater,
@@ -38,6 +40,8 @@ public enum BiomeTileType
 
     wall,
     wallBottom,
+    door,
+    floor,
 
     water,
     dirtyWater,

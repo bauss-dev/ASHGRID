@@ -7,9 +7,7 @@ module ashgrid.generators;
 
 import std.array : array;
 import std.random : Random, uniform;
-import std.algorithm : clamp;
-import std.random : Random, uniform;
-import std.algorithm.comparison : min, max;
+import std.algorithm : clamp, min, max;
 
 import ashgrid.enums;
 import ashgrid.functions;
@@ -247,6 +245,233 @@ TBiome[] generateDungeon(TBiome = Biome)(MapSettings settings, TBiome emptyBiome
     return dungeon;
 }
 
+/// Generates villages on an existing biome map and returns a new map that includes the villages.
+TBiome[] generateVillages(TBiome = Biome)(
+    MapSettings settings,
+    ref TBiome[] existingMap,
+    TBiome emptyBiome,
+    TBiome wallBiome,
+    TBiome wallBottomBiome,
+    TBiome doorBiome,
+    TBiome floorBiome,
+    bool delegate(TBiome) isValidBiome,
+    out bool[] villageTiles,
+    int villageCount = 3,
+    int villageWidth = 50,
+    int villageHeight = 50,
+    int maxHousesPerVillage = 10,
+    int houseMinSize = 6,
+    int houseMaxSize = 15,
+    int maxAttemptsPerVillage = 1000
+)
+{
+    TBiome[] generateVillage(TBiome = Biome)(
+        MapSettings settings,
+        TBiome emptyBiome,
+        TBiome wallBiome,
+        TBiome wallBottomBiome,
+        TBiome doorBiome,
+        TBiome floorBiome,
+        int maxHouses = 10,
+        int houseMinSize = 6,
+        int houseMaxSize = 15,
+        int maxAttempts = 1000
+    )
+    {
+        auto tiles = new TBiome[settings.width * settings.height];
+        foreach (i; 0 .. tiles.length)
+            tiles[i] = emptyBiome;
+
+        struct House
+        {
+            int x, y, w, h;
+
+            bool intersects(House other)
+            {
+                return !(x + w + 1 <= other.x || x >= other.x + other.w + 1 ||
+                        y + h + 1 <= other.y || y >= other.y + other.h + 1);
+            }
+        }
+
+        House[] houses;
+        auto rnd = Random(settings.seed + 4242);
+
+        int attempts = 0;
+
+        while (houses.length < maxHouses && attempts < maxAttempts)
+        {
+            attempts++;
+
+            int w = uniform(houseMinSize, houseMaxSize + 1, rnd);
+            int h = uniform(houseMinSize, houseMaxSize + 1, rnd);
+
+            int x = uniform(1, settings.width - w - 2, rnd);
+            int y = uniform(1, settings.height - h - 2, rnd);
+
+            House newHouse = House(x, y, w, h);
+
+            bool overlaps = false;
+            foreach (h2; houses)
+            {
+                if (newHouse.intersects(h2))
+                {
+                    overlaps = true;
+                    break;
+                }
+            }
+            if (overlaps)
+                continue;
+
+            bool areaClear = true;
+            foreach (yy; y .. y + h)
+            foreach (xx; x .. x + w)
+            {
+                if (tiles[getCoordinateIndex(settings.width, xx, yy)] != emptyBiome)
+                {
+                    areaClear = false;
+                    break;
+                }
+            }
+            if (!areaClear)
+                continue;
+
+            foreach (fy; y + 1 .. y + h - 1)
+            foreach (fx; x + 1 .. x + w)
+            {
+                tiles[getCoordinateIndex(settings.width, fx, fy)] = floorBiome;
+            }
+
+            foreach (tx; x .. x + w)
+            {
+                tiles[getCoordinateIndex(settings.width, tx, y)] = wallBiome;
+            }
+
+            int wallBottomY = y + 1;
+            if (wallBottomY < settings.height)
+            {
+                foreach (tx; x .. x + w)
+                {
+                    int idx = getCoordinateIndex(settings.width, tx, wallBottomY);
+                    auto current = tiles[idx];
+                    if (current == emptyBiome || current == floorBiome)
+                        tiles[idx] = wallBottomBiome;
+                }
+            }
+
+            int doorX = uniform(x + 1, x + w - 1, rnd);
+            foreach (bx; x .. x + w)
+            {
+                int idx = getCoordinateIndex(settings.width, bx, y + h - 1);
+                if (bx == doorX)
+                    tiles[idx] = doorBiome;
+                else
+                    tiles[idx] = wallBiome;
+            }
+
+            foreach (ly; y + 1 .. y + h - 1)
+            {
+                tiles[getCoordinateIndex(settings.width, x, ly)] = wallBiome;
+            }
+
+            foreach (ry; y + 1 .. y + h - 1)
+            {
+                tiles[getCoordinateIndex(settings.width, x + w - 1, ry)] = wallBiome;
+            }
+
+            houses ~= newHouse;
+        }
+
+        return tiles;
+    }
+
+    villageTiles.length = settings.width * settings.height;
+    villageTiles[] = false;
+
+    auto map = existingMap.dup;
+    Random rnd = Random(settings.seed + 9876);
+
+    struct Rect
+    {
+        int x, y, w, h;
+
+        bool intersects(Rect other)
+        {
+            return !(x + w + 5 <= other.x || x >= other.x + other.w + 5 ||
+                     y + h + 5 <= other.y || y >= other.y + other.h + 5);
+        }
+    }
+
+    Rect[] villages;
+    int attempts = 0;
+
+    while (villages.length < villageCount && attempts < villageCount * 20)
+    {
+        attempts++;
+
+        int vx = uniform(1, settings.width - villageWidth - 1, rnd);
+        int vy = uniform(1, settings.height - villageHeight - 1, rnd);
+        Rect newVillage = Rect(vx, vy, villageWidth, villageHeight);
+
+        bool overlap = false;
+        foreach(v; villages)
+        {
+            if(newVillage.intersects(v))
+            {
+                overlap = true;
+                break;
+            }
+        }
+        if(overlap) continue;
+
+        bool areaValid = true;
+        foreach (yLocal; 0 .. villageHeight)
+        foreach (xLocal; 0 .. villageWidth)
+        {
+            int idx = getCoordinateIndex(settings.width, vx + xLocal, vy + yLocal);
+            if (!isValidBiome(map[idx]))
+            {
+                areaValid = false;
+                break;
+            }
+        }
+        if (!areaValid) continue;
+
+        auto villageSettings = new MapSettings(settings.seed + vx + vy, villageWidth, villageHeight);
+        auto villageMap = generateVillage!TBiome(
+            villageSettings,
+            emptyBiome,
+            wallBiome,
+            wallBottomBiome,
+            doorBiome,
+            floorBiome,
+            maxHousesPerVillage,
+            houseMinSize,
+            houseMaxSize,
+            maxAttemptsPerVillage
+        );
+
+        foreach (yLocal; 0 .. villageHeight)
+        foreach (xLocal; 0 .. villageWidth)
+        {
+            int mapX = vx + xLocal;
+            int mapY = vy + yLocal;
+            
+            int mapIdx = getCoordinateIndex(settings.width, mapX, mapY);
+            auto villageTile = villageMap[getCoordinateIndex(villageWidth, xLocal, yLocal)];
+
+            if (villageTile != emptyBiome && isValidBiome(map[mapIdx]))
+            {
+                map[mapIdx] = villageTile;
+                villageTiles[mapIdx] = true;
+            }
+        }
+
+        villages ~= newVillage;
+    }
+
+    return map;
+}
+
 /// Generates tiles based on the biome coordinate array given.
 auto generateTiles(TBiome = Biome, TBiomeTileType = BiomeTileType)(MapSettings settings, TBiome[] biomes, int[] heights, BiomeTile!(TBiome, TBiomeTileType) delegate(int generatorValue, TBiome biome, int height) tileGenerator)
 {
@@ -294,7 +519,7 @@ void generateWaterBiome(TBiome = Biome)(MapSettings settings, TBiome[] biomes, T
 }
 
 /// Generates a hill height coordinate array. Supply this array to generateTiles. For dungeons you may exclude this.
-int[] generateHillHeights(MapSettings settings, int maxHeight = 3, int heightNormalization = 3, int noiseOffset = 2000)
+int[] generateHillHeights(MapSettings settings, bool[] villageTiles = null, int maxHeight = 3, int heightNormalization = 3, int noiseOffset = 2000)
 {
     auto heightMap = createCoordinateArray!int(settings.width, settings.height);
 
@@ -308,6 +533,12 @@ int[] generateHillHeights(MapSettings settings, int maxHeight = 3, int heightNor
         foreach (x; 0 .. settings.width)
         {
             int index = getCoordinateIndex(settings.width, x, y);
+
+            if (villageTiles !is null && villageTiles[index])
+            {
+                heightMap[index] = 0; // flat height for village tiles (no hills)
+                continue;
+            }
 
             float noise = smoothNoise(
                 cast(int)(x / settings.biomeSize),
@@ -324,6 +555,9 @@ int[] generateHillHeights(MapSettings settings, int maxHeight = 3, int heightNor
 
     foreach (index, noise; rawNoise)
     {
+        if (villageTiles !is null && villageTiles[index])
+            continue;
+
         float normalized = (noise - minNoise) / (maxNoise - minNoise);
         float curved = normalized ^^ heightNormalization;
         int height = cast(int)(curved * (maxHeight + 1));
@@ -406,6 +640,9 @@ BiomeTile!(Biome, BiomeTileType) defaultTileGenerator(int generatorValue, Biome 
     {
         case Biome.wall: return BiomeTileStruct(biome, BiomeTileType.wall);
         case Biome.wallBottom: return BiomeTileStruct(biome, BiomeTileType.wallBottom);
+
+        case Biome.door: return BiomeTileStruct(biome, BiomeTileType.door);
+        case Biome.floor: return BiomeTileStruct(biome, BiomeTileType.floor);
 
         case Biome.water: return BiomeTileStruct(biome, BiomeTileType.water);
         case Biome.dirtyWater: return BiomeTileStruct(biome, BiomeTileType.dirtyWater);

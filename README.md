@@ -34,7 +34,17 @@ generateRivers!Biome(settings, biomes,
     Biome.dirtyWater,
     (b) => b == Biome.swamp);
 
-auto heights = generateHillHeights(settings);
+bool[] villageTiles;
+biomes = generateVillages!Biome(settings, biomes,
+    Biome.none,
+    Biome.wall,
+    Biome.wallBottom,
+    Biome.door,
+    Biome.floor,
+    (b) => b == Biome.plain || b == Biome.forest,
+    villageTiles);
+
+auto heights = generateHillHeights(settings, villageTiles);
 
 auto biomeTiles = generateTiles!(Biome, BiomeTileType)(settings, biomes, heights, (g,b,h)
 {
